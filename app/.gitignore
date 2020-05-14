@@ -1,2 +1,6 @@
 *.o
 /Release/
+.cproject
+.project
+.settings/
+
