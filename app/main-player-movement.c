@@ -397,7 +397,7 @@ void mouseMotionFunc(int x, int y) {
     glutPostRedisplay();
 }
 
-int main(int argc, char **argv) {
+int main2(int argc, char **argv) {
     setbuf(stdout, NULL);
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH);
