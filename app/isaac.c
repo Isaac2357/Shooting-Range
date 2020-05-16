@@ -93,7 +93,7 @@ static Sphere bullet;
 static vec3 bulletC = {179.0/255, 36.0/255, 40.0/255};
 static vec3 bulletPosition = {0,0,0};
 static vec3 bulletDirection = {0,0,0};
-int shootActive = 0, bulletInRange = 1;
+static int shootActive = 0, bulletInRange = 1;
 
 static void initTexture(const char* filename, GLuint textureId) {
     unsigned char* data;
@@ -646,7 +646,7 @@ static void mouseMotionFunc(int x, int y) {
     glutPostRedisplay();
 }
 
-int main(int argc, char **argv) {
+int main1(int argc, char **argv) {
     setbuf(stdout, NULL);
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH);

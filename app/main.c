@@ -5,6 +5,9 @@
 #include "Transforms.h"
 #include "Utils.h"
 #include "Cylinder.h"
+#include "Vec4.h"
+#include "Vec3.h"
+#include "Sphere.h"
 
 #define toRadians(deg) deg * M_PI / 180.0
 #define max(a, b) a > b ? a : b
@@ -27,6 +30,7 @@ static float observerYaw = 0;
 static float observerPitch = 0;
 static float observerSpeed = 0.1;
 static float angleSpeed = 0.1;
+static int mouseX, mouseY;
 
 static Mat4   modelMatrix, projectionMatrix, viewMatrix;
 
@@ -39,11 +43,12 @@ static GLuint programId2, vertexPositionLoc2, vertexColorLoc2, vertexTexcoordLoc
 static GLuint programId3, vertexPositionLoc3, vertexColorLoc3,vertexNormalLoc3,
               modelMatrixLoc3, projectionMatrixLoc3, viewMatrixLoc3;
 
+static GLuint programId4, vertexPositionLoc4;
 
 static GLuint ambientLightLoc, materialALoc, materialDLoc;
 static GLuint materialSLoc, cameraPositionLoc;
 
-static GLuint roomVA, playerVA;
+static GLuint roomVA, playerVA, crossVA;
 
 static vec3 ambientLight  = {0.5, 0.5, 0.5};
 
@@ -84,7 +89,11 @@ static Cylinder c;
 static vec3 lightBodyColor = {34.0/255, 36.0/255, 38.0/255};
 static vec3 lightBaseColor= {1, 1, 0.93};
 static Cylinder lightObj;
-
+static Sphere bullet;
+static vec3 bulletC = {179.0/255, 36.0/255, 40.0/255};
+static vec3 bulletPosition = {0,0,0};
+static vec3 bulletDirection = {0,0,0};
+static int shootActive = 0, bulletInRange = 1;
 
 static void initTexture(const char* filename, GLuint textureId) {
     unsigned char* data;
@@ -161,6 +170,18 @@ static int initShaders() {
     viewMatrixLoc3       = glGetUniformLocation(programId3, "viewMatrix");
     projectionMatrixLoc3 = glGetUniformLocation(programId3, "projMatrix");
 
+    vShader = compileShader("shaders/cross.vsh", GL_VERTEX_SHADER);
+    if(!shaderCompiled(vShader)) return err;
+    fShader = compileShader("shaders/cross.fsh", GL_FRAGMENT_SHADER);
+    if(!shaderCompiled(vShader)) return err;
+
+    programId4 = glCreateProgram();
+    glAttachShader(programId4, vShader);
+    glAttachShader(programId4, fShader);
+    glLinkProgram(programId4);
+
+    vertexPositionLoc4   = glGetAttribLocation(programId4, "vertexPosition");
+
     glUseProgram(programId1);
     c = cylinder_create(ROOM_HEIGHT, 1, 1, 40, 40, col, col, 0);
     cylinder_bind(c, vertexPositionLoc, vertexColorLoc, vertexNormalLoc, 0);
@@ -168,6 +189,8 @@ static int initShaders() {
     glUseProgram(programId3);
     lightObj = cylinder_create_solid(0.5, 0.5, 0.25, 40, 40, lightBodyColor, lightBaseColor, 0);
     cylinder_bind(lightObj, vertexPositionLoc3, vertexColorLoc3, vertexNormalLoc3, 0);
+    bullet = sphere_create_solid(0.1, 30, 30, bulletC, 0);
+    sphere_bind(bullet, vertexPositionLoc3, vertexColorLoc3, vertexNormalLoc3, 0);
 
     return 0;
 
@@ -253,7 +276,7 @@ static void initPlayer() {
     float positions[] =  { -0.2, -0.5,    -0.2, -1,    0.2, -0.5,    0.2, -1 };
     float colors[] = { 1, 1, 1,  1, 1, 1, 1, 1, 1,  1, 1, 1};
     // TODO Adjust texture or add new texture
-    float textcoords[] = { 0, 2,   0, 0,  2, 2,  2, 0 };
+    float textcoords[] = { 0, 1,   0, 0,  1, 1,  1, 0 };
 
     glUseProgram(programId2);
     glGenVertexArrays(1, &playerVA);
@@ -275,6 +298,31 @@ static void initPlayer() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(textcoords), textcoords, GL_STATIC_DRAW);
     glVertexAttribPointer(vertexTexcoordLoc2, 2, GL_FLOAT, 0, 0, 0);
     glEnableVertexAttribArray(vertexTexcoordLoc2);
+}
+
+static void initCross() {
+	int w = glutGet(GLUT_WINDOW_WIDTH);
+	int h = glutGet(GLUT_WINDOW_HEIGHT);
+	float aspect = (float)w / h;
+	printf("%d, %d %.4f\n", w, h, aspect);
+	float scale = 0.05;
+	float model [] = {
+			0,  		1 * scale,
+			0,		   -1 * scale,
+			1 * scale / aspect,  0,
+		   -1 * scale / aspect,  0
+	};
+
+    glUseProgram(programId4);
+    glGenVertexArrays(1, &crossVA);
+    glBindVertexArray(crossVA);
+    GLuint buffers[1];
+    glGenBuffers(1, buffers);
+
+    glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(model), model, GL_STATIC_DRAW);
+    glVertexAttribPointer(vertexPositionLoc4, 2, GL_FLOAT, 0, 0, 0);
+    glEnableVertexAttribArray(vertexPositionLoc4);
 }
 
 static Bool collides(float x, float y, float z) {
@@ -368,7 +416,25 @@ static void toUnit(vec3 v) {
     v[2] /= m;
 }
 
-static int mouseX, mouseY;
+static float floatingAbs(float val) {
+	if (val >= 0.0) return val;
+	return -val;
+}
+
+static void updateBulletPosition() {
+	for (int i = 0; i < 3; i++) {
+		bulletPosition[i] += bulletDirection[i];
+	}
+	if (floatingAbs(bulletPosition[0]) <= ROOM_WIDTH/2 &&
+		floatingAbs(bulletPosition[1]) <= ROOM_HEIGHT/2 &&
+		floatingAbs(bulletPosition[2]) <= ROOM_DEPTH/2 ) {
+		bulletInRange = 1;
+		//printf("%.2f, %.2f\n", floatingAbs(bulletPosition[0]), floatingAbs(bulletPosition[2]));
+	} else {
+		bulletInRange = 0;
+		shootActive = 0;
+	}
+}
 
 static void displayFunc() {
     mouseX = glutGet(GLUT_WINDOW_WIDTH) / 2;
@@ -471,6 +537,21 @@ static void displayFunc() {
     glUniformMatrix4fv(modelMatrixLoc3, 1, true, modelMatrix.values);
     cylinder_draw(lightObj);
 
+    // Draw bullet
+    if(shootActive && bulletInRange) {
+		updateBulletPosition();
+		mIdentity(&modelMatrix);
+		translate(&modelMatrix, bulletPosition[0], bulletPosition[1], bulletPosition[2]);
+		glUniformMatrix4fv(modelMatrixLoc3, 1, true, modelMatrix.values);
+		sphere_draw(bullet);
+    }
+
+    // Draw cross
+    glUseProgram(programId4);
+    glBindVertexArray(crossVA);
+    glLineWidth(2.0);
+    glDrawArrays(GL_LINES, 0, 4);
+
     glutSwapBuffers();
 }
 
@@ -508,6 +589,50 @@ static void keyPressedFunc(unsigned char key, int x, int y) {
     glutPostRedisplay();
 }
 
+static void mouseClick(int button, int state, int x, int y) {
+	printf("%d, %d\n", x, y);
+	if ( state != GLUT_UP) return;
+	if(shootActive) return;
+
+	if(button == GLUT_RIGHT_BUTTON) {
+		//puts("RIGHT - UP");
+		// Norm coords
+		float nx = 2.0 * x / glutGet(GLUT_WINDOW_WIDTH) - 1;
+		float ny =  -1 * (2.0 * y / glutGet(GLUT_WINDOW_HEIGHT) - 1);
+		printf("Norm: %.2f, %.2f\n", nx, ny);
+
+		Vec4 rayN = {nx, ny, -1, 1};
+		// View coords
+		Mat4 invProjectioMatrix;
+		inverse(projectionMatrix, &invProjectioMatrix);
+		Vec4 rayV;
+		multiply(invProjectioMatrix, rayN, &rayV);
+		printf("View: %.2f, %.2f\n", rayV.x, rayV.y);
+
+		// World coords
+		rayV.z = -1;
+		rayV.w = 0;
+		Mat4 invViewMatrix;
+		inverse(viewMatrix, &invViewMatrix);
+		Vec4 rayM;
+		multiply(invViewMatrix, rayV, &rayM);
+		rayM.w = 0;
+		vec4_normalize(&rayM);
+		printf("World: %.2f, %.2f, %.2f\n", rayM.x, rayM.y, rayM.z);
+		// Set bullet initial position
+		bulletPosition[0] = observerX;
+		bulletPosition[1] = observerY;
+		bulletPosition[2] = observerZ;
+		// Set bullet direction
+		bulletDirection[0] = rayM.x;
+		bulletDirection[1] = rayM.y;
+		bulletDirection[2] = rayM.z;
+
+		shootActive = 1;
+		bulletInRange = 1;
+	}
+}
+
 static void mouseMotionFunc(int x, int y) {
     int incX = x - mouseX;
     int incY = y - mouseY;
@@ -521,12 +646,12 @@ static void mouseMotionFunc(int x, int y) {
     glutPostRedisplay();
 }
 
-int main1(int argc, char **argv) {
+int main(int argc, char **argv) {
     setbuf(stdout, NULL);
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH);
     glutInitWindowPosition(0 ,0);
-    glutInitWindowSize(600,600);
+    glutInitWindowSize(900,600);
     glutCreateWindow("Shooting Range App");
 //    glutFullScreen();
     glutDisplayFunc(displayFunc);
@@ -535,6 +660,7 @@ int main1(int argc, char **argv) {
     glutKeyboardFunc(keyPressedFunc);
     glutKeyboardUpFunc(keyReleasedFunc);
     glutPassiveMotionFunc(mouseMotionFunc);
+    glutMouseFunc(mouseClick);
     glutSetCursor(GLUT_CURSOR_NONE);
     glewInit();
     glEnable(GL_DEPTH_TEST);
@@ -548,6 +674,7 @@ int main1(int argc, char **argv) {
     initLights();
     initRoom();
     initPlayer();
+    initCross();
 
     glClearColor(0, 0, 0, 1.0);
     glutMainLoop();
