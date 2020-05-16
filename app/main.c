@@ -36,6 +36,10 @@ static GLuint programId1, vertexPositionLoc, vertexColorLoc,
 
 static GLuint programId2, vertexPositionLoc2, vertexColorLoc2, vertexTexcoordLoc2;
 
+static GLuint programId3, vertexPositionLoc3, vertexColorLoc3,vertexNormalLoc3,
+              modelMatrixLoc3, projectionMatrixLoc3, viewMatrixLoc3;
+
+
 static GLuint ambientLightLoc, materialALoc, materialDLoc;
 static GLuint materialSLoc, cameraPositionLoc;
 
@@ -49,21 +53,21 @@ static vec3 materialS     = {0.6, 0.6, 0.6};
 
 //                          Color    subcutoff,  Position  Exponent Direction  Cos(cutoff)
 static float lights[]   = {
-		1, 1, 1, 		// Color
+		1, 1, 0.93, 	// Color
 		0.9238,    		// Sub-cutoff
 		0, 3,  -10,  	// Position
 		256,	  		// Exponent
 		0, -1,  0,   	// Direction
 		0.7071,			// Cutoff
 
-        1, 1, 1,
+        1, 1, 0.93,
 		0.9238,
 		0, 3,   0,
 		256,
 		0, -1,  0,
 		0.7071,
 
-		1, 1, 1,
+		1, 1, 0.93,
 		0.9238,
 		0, 3,   10,
 		256,
@@ -77,6 +81,9 @@ static GLuint textures[4];
 
 static vec3 col = {1, 0.8, 0.0};
 static Cylinder c;
+static vec3 lightBodyColor = {34.0/255, 36.0/255, 38.0/255};
+static vec3 lightBaseColor= {1, 1, 0.93};
+static Cylinder lightObj;
 
 
 static void initTexture(const char* filename, GLuint textureId) {
@@ -136,9 +143,31 @@ static int initShaders() {
     vertexColorLoc2     = glGetAttribLocation(programId2, "vertexColor");
     vertexTexcoordLoc2  = glGetAttribLocation(programId2, "vertexTexcoord");
 
+
+    vShader = compileShader("shaders/lightobjs.vsh", GL_VERTEX_SHADER);
+    if(!shaderCompiled(vShader)) return err;
+    fShader = compileShader("shaders/lightobjs.fsh", GL_FRAGMENT_SHADER);
+    if(!shaderCompiled(vShader)) return err;
+
+    programId3 = glCreateProgram();
+    glAttachShader(programId3, vShader);
+    glAttachShader(programId3, fShader);
+    glLinkProgram(programId3);
+
+    vertexPositionLoc3   = glGetAttribLocation(programId3, "vertexPosition");
+    vertexColorLoc3      = glGetAttribLocation(programId3, "vertexColor");
+    vertexNormalLoc3     = glGetAttribLocation(programId3, "vertexNormal");
+    modelMatrixLoc3      = glGetUniformLocation(programId3, "modelMatrix");
+    viewMatrixLoc3       = glGetUniformLocation(programId3, "viewMatrix");
+    projectionMatrixLoc3 = glGetUniformLocation(programId3, "projMatrix");
+
     glUseProgram(programId1);
     c = cylinder_create(ROOM_HEIGHT, 1, 1, 40, 40, col, col, 0);
     cylinder_bind(c, vertexPositionLoc, vertexColorLoc, vertexNormalLoc, 0);
+
+    glUseProgram(programId3);
+    lightObj = cylinder_create_solid(0.5, 0.5, 0.25, 40, 40, lightBodyColor, lightBaseColor, 0);
+    cylinder_bind(lightObj, vertexPositionLoc3, vertexColorLoc3, vertexNormalLoc3, 0);
 
     return 0;
 
@@ -378,11 +407,13 @@ static void displayFunc() {
     glBindTexture(GL_TEXTURE_2D, textures[1]);
     glDrawArrays(GL_TRIANGLES, 30,  6);
 
+    // Draw shotgun
     glUseProgram(programId2);
     glBindVertexArray(playerVA);
     glBindTexture(GL_TEXTURE_2D, textures[2]);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
+    // Draw cylinders
     glUseProgram(programId1);
     mIdentity(&modelMatrix);
     translate(&modelMatrix, -ROOM_WIDTH/4, 0, 0);
@@ -414,6 +445,31 @@ static void displayFunc() {
     glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
     cylinder_draw(c);
 
+    //Draw light objects
+    glUseProgram(programId3);
+
+    glUniformMatrix4fv(projectionMatrixLoc3, 1, true, projectionMatrix.values);
+
+    mIdentity(&viewMatrix);
+    rotateX(&viewMatrix, -observerPitch);
+    rotateY(&viewMatrix, -observerYaw);
+    translate(&viewMatrix, -observerX, -observerY, -observerZ);
+    glUniformMatrix4fv(viewMatrixLoc3, 1, true, viewMatrix.values);
+
+    mIdentity(&modelMatrix);
+    translate(&modelMatrix, 0, ROOM_HEIGHT / 2, 0);
+    glUniformMatrix4fv(modelMatrixLoc3, 1, true, modelMatrix.values);
+    cylinder_draw(lightObj);
+
+    mIdentity(&modelMatrix);
+    translate(&modelMatrix, 0, ROOM_HEIGHT / 2, -ROOM_DEPTH/4);
+    glUniformMatrix4fv(modelMatrixLoc3, 1, true, modelMatrix.values);
+    cylinder_draw(lightObj);
+
+    mIdentity(&modelMatrix);
+    translate(&modelMatrix, 0, ROOM_HEIGHT / 2, ROOM_DEPTH/4);
+    glUniformMatrix4fv(modelMatrixLoc3, 1, true, modelMatrix.values);
+    cylinder_draw(lightObj);
 
     glutSwapBuffers();
 }
@@ -465,7 +521,7 @@ static void mouseMotionFunc(int x, int y) {
     glutPostRedisplay();
 }
 
-int main1(int argc, char **argv) {
+int main(int argc, char **argv) {
     setbuf(stdout, NULL);
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH);
