@@ -1,26 +1,49 @@
 /*
  * Cylinder.h
  *
- *  Created on: 11/04/2020
- *      Author: hpiza
+ *  Created on: Apr 19, 2020
+ *      Author: isaac
  */
 
 #ifndef CYLINDER_H_
 #define CYLINDER_H_
 
-#include <GL/glew.h>
+#include <GL/freeglut.h>
+
+typedef float vec3[3];
+
+struct strCylinder {
+
+	float length;
+	int slices;
+	int stacks;
+	float bottomRadius;
+	float topRadius;
+	vec3 bottomColor;
+	vec3 topColor;
+
+	float *model;
+	float *colors;
+	float *normals;
+	GLushort *indexes;
+
+	float *bottomBaseModel;
+	float *bottomBaseColors;
+	float *bottomBaseNormals;
+
+	float *topBaseModel;
+	float *topBaseColors;
+	float *topBaseNormals;
+
+	GLuint vertexArrayIds[3];
+	GLuint bufferIds [10];
+};
 
 typedef struct strCylinder* Cylinder;
 
-Cylinder cylinder_create(float length, float bottomRadius, float topRadius, int slices, int stack, float bottomColor[3], float topColor[3]);
-
-void cylinder_bind(Cylinder c, GLuint, GLuint, GLuint);
-
-void cylinder_destroy(Cylinder);
-
-void cylinder_draw(Cylinder);
-
-void cylinder_drawlines(Cylinder);
-
+Cylinder cylinder_create(float length, float bottomRadius, float topRadius, int slices, int stacks, vec3 bottomColor, vec3 topColor, int verbose);
+void cylinder_bind(Cylinder cylinder, GLuint vertexPosLoc, GLuint vertexColLoc, GLuint vertexNormalLoc, int verbose);
+void cylinder_draw(Cylinder cylinder);
+void cylinder_draw_lines(Cylinder cylinder);
 
 #endif /* CYLINDER_H_ */
