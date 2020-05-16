@@ -1,12 +1,17 @@
 #include <GL/glew.h>
 #include <GL/freeglut.h>
-#include "Transforms.h"
-#include "Utils.h"
 #include <math.h>
 #include <stdio.h>
+#include "Transforms.h"
+#include "Utils.h"
+#include "Cylinder.h"
 
 #define toRadians(deg) deg * M_PI / 180.0
 #define max(a, b) a > b ? a : b
+
+static const float ROOM_WIDTH  = 40;
+static const float ROOM_HEIGHT = 6;
+static const float ROOM_DEPTH  = 40;
 
 typedef enum { None = 0, Left = 1, Right = 2, Bottom = 3, Top = 4, Front = 5, Back = 6 } Boundary;
 typedef enum { False = 0, True = 1 } Bool;
@@ -24,16 +29,17 @@ static float observerSpeed = 0.1;
 static float angleSpeed = 0.1;
 
 static Mat4   modelMatrix, projectionMatrix, viewMatrix;
-static GLuint programId1, vertexPositionLoc, vertexColorLoc, vertexNormalLoc, vertexTexcoordLoc, modelMatrixLoc, projectionMatrixLoc, viewMatrixLoc;
+
+static GLuint programId1, vertexPositionLoc, vertexColorLoc,
+			  vertexNormalLoc, vertexTexcoordLoc, modelMatrixLoc,
+			  projectionMatrixLoc, viewMatrixLoc, hLoc;
+
 static GLuint programId2, vertexPositionLoc2, vertexColorLoc2, vertexTexcoordLoc2;
+
 static GLuint ambientLightLoc, materialALoc, materialDLoc;
 static GLuint materialSLoc, cameraPositionLoc;
 
 static GLuint roomVA, playerVA;
-
-static const float ROOM_WIDTH  = 40;
-static const float ROOM_HEIGHT = 6;
-static const float ROOM_DEPTH  = 40;
 
 static vec3 ambientLight  = {0.5, 0.5, 0.5};
 
@@ -42,14 +48,36 @@ static vec3 materialD     = {0.6, 0.6, 0.6};
 static vec3 materialS     = {0.6, 0.6, 0.6};
 
 //                          Color    subcutoff,  Position  Exponent Direction  Cos(cutoff)
-static float lights[]   = { 1, 1, 1,  0.9238,    0, 3,  -10,  256,	  0, -1,  0,   0.7071,		// Luz Roja
-                            1, 1, 1,  0.9238,    0, 3,   0,  256,     0, -1,  0,   0.7071, 	// Luz Verde
-                            1, 1, 1,  0.9238,    0, 3,   10,  256,     0, -1,  0,   0.7071    // Luz Azul
+static float lights[]   = {
+		1, 1, 1, 		// Color
+		0.9238,    		// Sub-cutoff
+		0, 3,  -10,  	// Position
+		256,	  		// Exponent
+		0, -1,  0,   	// Direction
+		0.7071,			// Cutoff
+
+        1, 1, 1,
+		0.9238,
+		0, 3,   0,
+		256,
+		0, -1,  0,
+		0.7071,
+
+		1, 1, 1,
+		0.9238,
+		0, 3,   10,
+		256,
+		0, -1,  0,
+		0.7071
 };
 
 static GLuint lightsBufferId;
 
 static GLuint textures[4];
+
+static vec3 col = {1, 0.8, 0.0};
+static Cylinder c;
+
 
 static void initTexture(const char* filename, GLuint textureId) {
     unsigned char* data;
@@ -70,11 +98,12 @@ static void initTextures() {
     initTexture("textures/Shotgun.bmp",  textures[2]);
 }
 
-static void initShaders() {
+static int initShaders() {
+	int err = 1;
     GLuint vShader = compileShader("shaders/phong.vsh", GL_VERTEX_SHADER);
-    if(!shaderCompiled(vShader)) return;
+    if(!shaderCompiled(vShader)) return err;
     GLuint fShader = compileShader("shaders/phong.fsh", GL_FRAGMENT_SHADER);
-    if(!shaderCompiled(fShader)) return;
+    if(!shaderCompiled(fShader)) return err;
     programId1 = glCreateProgram();
     glAttachShader(programId1, vShader);
     glAttachShader(programId1, fShader);
@@ -92,11 +121,12 @@ static void initShaders() {
     materialDLoc        = glGetUniformLocation(programId1, "materialD");
     materialSLoc        = glGetUniformLocation(programId1, "materialS");
     cameraPositionLoc   = glGetUniformLocation(programId1, "cameraPosition");
+    hLoc   = glGetUniformLocation(programId1, "h");
 
     vShader = compileShader("shaders/pos_col.vsh", GL_VERTEX_SHADER);
-    if(!shaderCompiled(vShader)) return;
+    if(!shaderCompiled(vShader)) return err;
     fShader = compileShader("shaders/color.fsh", GL_FRAGMENT_SHADER);
-    if(!shaderCompiled(vShader)) return;
+    if(!shaderCompiled(vShader)) return err;
     programId2 = glCreateProgram();
     glAttachShader(programId2, vShader);
     glAttachShader(programId2, fShader);
@@ -105,6 +135,13 @@ static void initShaders() {
     vertexPositionLoc2  = glGetAttribLocation(programId2, "vertexPosition");
     vertexColorLoc2     = glGetAttribLocation(programId2, "vertexColor");
     vertexTexcoordLoc2  = glGetAttribLocation(programId2, "vertexTexcoord");
+
+    glUseProgram(programId1);
+    c = cylinder_create(ROOM_HEIGHT, 1, 1, 40, 40, col, col, 0);
+    cylinder_bind(c, vertexPositionLoc, vertexColorLoc, vertexNormalLoc, 0);
+
+    return 0;
+
 }
 
 static void initLights() {
@@ -310,11 +347,6 @@ static void displayFunc() {
     glutWarpPointer(mouseX, mouseY);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glUseProgram(programId2);
-    glBindVertexArray(playerVA);
-    glBindTexture(GL_TEXTURE_2D, textures[2]);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
     switch (motionType) {
         case FORWARD:       moveForward(); break;
         case BACK:          moveBack(); break;
@@ -326,6 +358,8 @@ static void displayFunc() {
     }
 
     glUseProgram(programId1);
+
+    //Draw room
     glUniformMatrix4fv(projectionMatrixLoc, 1, true, projectionMatrix.values);
     mIdentity(&viewMatrix);
     rotateX(&viewMatrix, -observerPitch);
@@ -333,8 +367,7 @@ static void displayFunc() {
     translate(&viewMatrix, -observerX, -observerY, -observerZ);
     glUniform3f(glGetUniformLocation(programId1, "camera"), observerX, observerY, observerZ);
     glUniformMatrix4fv(viewMatrixLoc, 1, true, viewMatrix.values);
-
-    //	Draw room
+    glUniform1f(hLoc, (float)glutGet(GLUT_WINDOW_HEIGHT));
     mIdentity(&modelMatrix);
     glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
     glBindVertexArray(roomVA);
@@ -344,6 +377,43 @@ static void displayFunc() {
     glDrawArrays(GL_TRIANGLES, 24,  6);
     glBindTexture(GL_TEXTURE_2D, textures[1]);
     glDrawArrays(GL_TRIANGLES, 30,  6);
+
+    glUseProgram(programId2);
+    glBindVertexArray(playerVA);
+    glBindTexture(GL_TEXTURE_2D, textures[2]);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    glUseProgram(programId1);
+    mIdentity(&modelMatrix);
+    translate(&modelMatrix, -ROOM_WIDTH/4, 0, 0);
+    glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
+    cylinder_draw(c);
+
+    mIdentity(&modelMatrix);
+    translate(&modelMatrix, ROOM_WIDTH/4, 0, 0);
+    glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
+    cylinder_draw(c);
+
+    mIdentity(&modelMatrix);
+    translate(&modelMatrix, -ROOM_WIDTH/4, 0, -ROOM_DEPTH/4);
+    glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
+    cylinder_draw(c);
+
+    mIdentity(&modelMatrix);
+    translate(&modelMatrix, ROOM_WIDTH/4, 0, -ROOM_DEPTH/4);
+    glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
+    cylinder_draw(c);
+
+    mIdentity(&modelMatrix);
+    translate(&modelMatrix, -ROOM_WIDTH/4, 0, ROOM_DEPTH/4);
+    glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
+    cylinder_draw(c);
+
+    mIdentity(&modelMatrix);
+    translate(&modelMatrix, ROOM_WIDTH/4, 0, ROOM_DEPTH/4);
+    glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
+    cylinder_draw(c);
+
 
     glutSwapBuffers();
 }
@@ -395,12 +465,14 @@ static void mouseMotionFunc(int x, int y) {
     glutPostRedisplay();
 }
 
-int main2(int argc, char **argv) {
+int main(int argc, char **argv) {
     setbuf(stdout, NULL);
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH);
-    glutCreateWindow("Shooting Range");
-    glutFullScreen();
+    glutInitWindowPosition(0 ,0);
+    glutInitWindowSize(600,600);
+    glutCreateWindow("Shooting Range App");
+//    glutFullScreen();
     glutDisplayFunc(displayFunc);
     glutReshapeFunc(reshapeFunc);
     glutTimerFunc(10, timerFunc, 1);
@@ -410,12 +482,18 @@ int main2(int argc, char **argv) {
     glutSetCursor(GLUT_CURSOR_NONE);
     glewInit();
     glEnable(GL_DEPTH_TEST);
+
+    if (initShaders() != 0) {
+    	puts("At least one shader did not compile.");
+    	exit(1);
+    }
+
     initTextures();
-    initShaders();
     initLights();
     initRoom();
     initPlayer();
-    glClearColor(0.1, 0.1, 0.2, 1.0);
+
+    glClearColor(0, 0, 0, 1.0);
     glutMainLoop();
     return 0;
 }
