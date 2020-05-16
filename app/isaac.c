@@ -1,12 +1,20 @@
 #include <GL/glew.h>
 #include <GL/freeglut.h>
-#include "Transforms.h"
-#include "Utils.h"
 #include <math.h>
 #include <stdio.h>
+#include "Transforms.h"
+#include "Utils.h"
+#include "Cylinder.h"
+
+/*#include <ft2build.h>
+#include FT_FREETYPE_H*/
 
 #define toRadians(deg) deg * M_PI / 180.0
 #define max(a, b) a > b ? a : b
+
+static const float ROOM_WIDTH  = 40;
+static const float ROOM_HEIGHT = 6;
+static const float ROOM_DEPTH  = 40;
 
 typedef enum { None = 0, Left = 1, Right = 2, Bottom = 3, Top = 4, Front = 5, Back = 6 } Boundary;
 typedef enum { False = 0, True = 1 } Bool;
@@ -24,16 +32,20 @@ static float observerSpeed = 0.1;
 static float angleSpeed = 0.1;
 
 static Mat4   modelMatrix, projectionMatrix, viewMatrix;
-static GLuint programId1, vertexPositionLoc, vertexColorLoc, vertexNormalLoc, vertexTexcoordLoc, modelMatrixLoc, projectionMatrixLoc, viewMatrixLoc;
+
+static GLuint programId1, vertexPositionLoc, vertexColorLoc,
+			  vertexNormalLoc, vertexTexcoordLoc, modelMatrixLoc,
+			  projectionMatrixLoc, viewMatrixLoc, hLoc;
+
 static GLuint programId2, vertexPositionLoc2, vertexColorLoc2, vertexTexcoordLoc2;
+
+static GLuint programId3, vertexPositionLoc3, vertexColorLoc3, vertexNormalLoc3,
+			  modelMatrixLoc3, projectionMatrixLoc3, viewMatrixLoc3;
+
 static GLuint ambientLightLoc, materialALoc, materialDLoc;
 static GLuint materialSLoc, cameraPositionLoc;
 
 static GLuint roomVA, playerVA;
-
-static const float ROOM_WIDTH  = 40;
-static const float ROOM_HEIGHT = 6;
-static const float ROOM_DEPTH  = 40;
 
 static vec3 ambientLight  = {0.5, 0.5, 0.5};
 
@@ -50,6 +62,10 @@ static float lights[]   = { 1, 1, 1,  0.9238,    0, 3,  -10,  256,	  0, -1,  0, 
 static GLuint lightsBufferId;
 
 static GLuint textures[4];
+
+static vec3 col = {1, 0.8, 0.0};
+static Cylinder c;
+
 
 static void initTexture(const char* filename, GLuint textureId) {
     unsigned char* data;
@@ -70,11 +86,12 @@ static void initTextures() {
     initTexture("textures/Shotgun.bmp",  textures[2]);
 }
 
-static void initShaders() {
+static int initShaders() {
+	int err = 1;
     GLuint vShader = compileShader("shaders/phong.vsh", GL_VERTEX_SHADER);
-    if(!shaderCompiled(vShader)) return;
+    if(!shaderCompiled(vShader)) return err;
     GLuint fShader = compileShader("shaders/phong.fsh", GL_FRAGMENT_SHADER);
-    if(!shaderCompiled(fShader)) return;
+    if(!shaderCompiled(fShader)) return err;
     programId1 = glCreateProgram();
     glAttachShader(programId1, vShader);
     glAttachShader(programId1, fShader);
@@ -92,11 +109,12 @@ static void initShaders() {
     materialDLoc        = glGetUniformLocation(programId1, "materialD");
     materialSLoc        = glGetUniformLocation(programId1, "materialS");
     cameraPositionLoc   = glGetUniformLocation(programId1, "cameraPosition");
+    hLoc   = glGetUniformLocation(programId1, "h");
 
     vShader = compileShader("shaders/pos_col.vsh", GL_VERTEX_SHADER);
-    if(!shaderCompiled(vShader)) return;
+    if(!shaderCompiled(vShader)) return err;
     fShader = compileShader("shaders/color.fsh", GL_FRAGMENT_SHADER);
-    if(!shaderCompiled(vShader)) return;
+    if(!shaderCompiled(vShader)) return err;
     programId2 = glCreateProgram();
     glAttachShader(programId2, vShader);
     glAttachShader(programId2, fShader);
@@ -105,6 +123,30 @@ static void initShaders() {
     vertexPositionLoc2  = glGetAttribLocation(programId2, "vertexPosition");
     vertexColorLoc2     = glGetAttribLocation(programId2, "vertexColor");
     vertexTexcoordLoc2  = glGetAttribLocation(programId2, "vertexTexcoord");
+
+    vShader = compileShader("shaders/cylinder.vsh", GL_VERTEX_SHADER);
+    if(!shaderCompiled(vShader)) return err;
+    fShader = compileShader("shaders/cylinder.fsh", GL_FRAGMENT_SHADER);
+    if(!shaderCompiled(fShader)) return err;
+
+    programId3 = glCreateProgram();
+    glAttachShader(programId3, vShader);
+    glAttachShader(programId3, fShader);
+    glLinkProgram(programId3);
+
+    vertexPositionLoc3   = glGetAttribLocation(programId3, "vertexPosition");
+    vertexColorLoc3      = glGetAttribLocation(programId3, "vertexColor");
+    vertexNormalLoc3     = glGetAttribLocation(programId3, "vertexNormal");
+    modelMatrixLoc3      = glGetUniformLocation(programId3, "modelMatrix");
+    viewMatrixLoc3       = glGetUniformLocation(programId3, "viewMatrix");
+    projectionMatrixLoc3 = glGetUniformLocation(programId3, "projMatrix");
+
+    glUseProgram(programId3);
+    c = cylinder_create(4, 2, 2, 60, 30, col, col);
+    cylinder_bind(c, vertexColorLoc3, vertexColorLoc3, vertexNormalLoc3);
+
+    return 0;
+
 }
 
 static void initLights() {
@@ -333,7 +375,7 @@ static void displayFunc() {
     translate(&viewMatrix, -observerX, -observerY, -observerZ);
     glUniform3f(glGetUniformLocation(programId1, "camera"), observerX, observerY, observerZ);
     glUniformMatrix4fv(viewMatrixLoc, 1, true, viewMatrix.values);
-
+    glUniform1f(hLoc, (float)glutGet(GLUT_WINDOW_HEIGHT));
     //	Draw room
     mIdentity(&modelMatrix);
     glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
@@ -344,6 +386,18 @@ static void displayFunc() {
     glDrawArrays(GL_TRIANGLES, 24,  6);
     glBindTexture(GL_TEXTURE_2D, textures[1]);
     glDrawArrays(GL_TRIANGLES, 30,  6);
+
+
+    glUseProgram(programId3);
+    glUniformMatrix4fv(projectionMatrixLoc3, 1, true, projectionMatrix.values);
+    mIdentity(&viewMatrix);
+    rotateX(&viewMatrix, -observerPitch);
+    rotateY(&viewMatrix, -observerYaw);
+    translate(&viewMatrix, -observerX, -observerY, -observerZ);
+    glUniformMatrix4fv(viewMatrixLoc3, 1, true, viewMatrix.values);
+    mIdentity(&modelMatrix);
+    glUniformMatrix4fv(modelMatrixLoc3, 1, true, modelMatrix.values);
+    cylinder_draw(c);
 
     glutSwapBuffers();
 }
@@ -400,6 +454,8 @@ int main(int argc, char **argv) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH);
     puts("Isaac");
+//    glutInitWindowPosition(0 ,0);
+//    glutInitWindowSize(600,600);
     glutCreateWindow("Shooting Range Isaac");
     glutFullScreen();
     glutDisplayFunc(displayFunc);
@@ -412,11 +468,14 @@ int main(int argc, char **argv) {
     glewInit();
     glEnable(GL_DEPTH_TEST);
     initTextures();
-    initShaders();
+    if (initShaders() != 0) {
+    	puts("At least one shader did not compile.");
+    	exit(1);
+    }
     initLights();
     initRoom();
     initPlayer();
-    glClearColor(0.1, 0.1, 0.2, 1.0);
+    glClearColor(0, 0, 0, 1.0);
     glutMainLoop();
     return 0;
 }
