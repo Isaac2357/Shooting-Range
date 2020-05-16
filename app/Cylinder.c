@@ -28,6 +28,143 @@ static void crossProduct(vec3 p1, vec3 p2, vec3 p3, vec3 res) {
 }
 */
 
+Cylinder cylinder_create_solid(float length, float bottomRadius, float topRadius, int slices, int stacks, vec3 bodyC, vec3 baseC, int verbose) {
+	Cylinder c = malloc(sizeof(struct strCylinder));
+
+	c->length = length;
+	c->slices = slices;
+	c->stacks = stacks;
+	c->bottomRadius = bottomRadius;
+	c->topRadius = topRadius;
+
+	c->bottomColor[0] = baseC[0];
+	c->bottomColor[1] = baseC[1];
+	c->bottomColor[2] = baseC[2];
+
+	c->topColor[0] = baseC[0];
+	c->topColor[1] = baseC[1];
+	c->topColor[2] = baseC[2];
+
+	c->model = malloc(sizeof(float) * ((slices + 1) * 2 * stacks * 3));
+	c->colors = malloc(sizeof(float) * ((slices + 1) * 2 * stacks * 3));
+	c->normals = malloc(sizeof(float) * ((slices + 1) * 2 * stacks * 3));
+	c->indexes = malloc(sizeof(GLushort) * (((slices + 1) * 2 * stacks + (stacks - 1))* 3));
+
+	float y = -length/2;
+	float deltaY = length / stacks;
+	float radius = bottomRadius;
+	float deltaRadius = (topRadius - bottomRadius) / stacks; // we need bottom and top radius to compute this
+	float theta = 0;
+	float deltaTheta = 360.0 / slices;
+
+	int index = 0;
+	int indexesIdx = 0, idxAux = 0;
+
+	/* ------------- CYLINDER BODY -------------*/
+	for (int i = 0; i < stacks; i++) {
+
+		for (int j = 0; j <= slices; j++) {
+			/* POSICIONES*/
+			c->model[index] = radius * cos(degreesToRadians(theta));
+			c->model[index + 1] = y;
+			c->model[index + 2] = radius * sin(degreesToRadians(theta));
+
+			c->model[index + 3] = (radius + deltaRadius) * cos(degreesToRadians(theta));
+			c->model[index + 4] = y + deltaY;
+			c->model[index + 5] = (radius + deltaRadius) * sin(degreesToRadians(theta));
+
+			/* COLORES */
+
+			c->colors[index]     = bodyC[0];
+			c->colors[index + 1] = bodyC[1];
+			c->colors[index + 2] = bodyC[2];
+
+			c->colors[index + 3] = bodyC[0];
+			c->colors[index + 4] = bodyC[1];
+			c->colors[index + 5] = bodyC[2];
+
+			/* INDICES*/
+			c->indexes[indexesIdx] = idxAux++;
+			c->indexes[indexesIdx + 1] = idxAux++;
+
+			theta += deltaTheta;
+			index += 6;
+			indexesIdx += 2;
+		}
+
+		c->indexes[indexesIdx] = 0xFFFF;
+		indexesIdx++;
+		y += deltaY;
+		radius += (deltaRadius);
+	}
+
+	/* ------------- CYLINDER TOP BASE -------------*/
+	theta = 0.0;
+	c->topBaseModel = malloc(sizeof(float) * ((slices + 2) * 3));
+	c->topBaseColors = malloc(sizeof(float) * ((slices + 2) * 3));
+	c->topBaseNormals = malloc(sizeof(float) * ((slices + 2) * 3));
+
+
+	c->topBaseModel[0] = 0.0;
+	c->topBaseModel[1] = y;
+	c->topBaseModel[2] = 0.0;
+
+	c->topBaseColors[0] = baseC[0];
+	c->topBaseColors[1] = baseC[1];
+	c->topBaseColors[2] = baseC[2];
+
+	int topBaseIdx = 3;
+	for (int k = 0; k <= slices; k++) {
+
+		/* POSICIONES BASE SUPERIOR */
+		c->topBaseModel[topBaseIdx] = topRadius * cos(degreesToRadians(theta));
+		c->topBaseModel[topBaseIdx + 1] = y;
+		c->topBaseModel[topBaseIdx + 2] = topRadius * sin(degreesToRadians(theta));
+
+		/* COLORES BASE SUPERIOR */
+		c->topBaseColors[topBaseIdx]     = baseC[0];
+		c->topBaseColors[topBaseIdx + 1] = baseC[1];
+		c->topBaseColors[topBaseIdx + 2] = baseC[2];
+
+		topBaseIdx += 3;
+		theta += deltaTheta;
+	}
+
+	/* ------------- CYLINDER BOTTOM BASE -------------*/
+
+	theta = 0.0;
+	c->bottomBaseModel = malloc(sizeof(float) * ((slices + 2) * 3));
+	c->bottomBaseColors = malloc(sizeof(float) * ((slices + 2) * 3));
+	c->bottomBaseNormals = malloc(sizeof(float) * ((slices + 2) * 3));
+
+	c->bottomBaseModel[0] = 0.0;
+	c->bottomBaseModel[1] = -y;
+	c->bottomBaseModel[2] = 0.0;
+
+	c->bottomBaseColors[0] = baseC[0];
+	c->bottomBaseColors[1] = baseC[1];
+	c->bottomBaseColors[2] = baseC[2];
+
+	int bottomBaseIdx = 3;
+	for (int k = 0; k <= slices; k++) {
+
+		/* POSICIONES BASE INFERIOR */
+		c->bottomBaseModel[bottomBaseIdx] = bottomRadius * cos(degreesToRadians(theta));
+		c->bottomBaseModel[bottomBaseIdx + 1] = -y;
+		c->bottomBaseModel[bottomBaseIdx + 2] = bottomRadius * sin(degreesToRadians(theta));
+
+		/* COLORES BASE INFERIOR */
+		c->bottomBaseColors[bottomBaseIdx]     = baseC[0];
+		c->bottomBaseColors[bottomBaseIdx + 1] = baseC[1];
+		c->bottomBaseColors[bottomBaseIdx + 2] = baseC[2];
+
+		bottomBaseIdx += 3;
+		theta += deltaTheta;
+	}
+
+	return c;
+}
+
 Cylinder cylinder_create(float length, float bottomRadius, float topRadius, int slices, int stacks, vec3 bottomColor, vec3 topColor, int verbose) {
 	Cylinder c = malloc(sizeof(struct strCylinder));
 
@@ -184,6 +321,8 @@ Cylinder cylinder_create(float length, float bottomRadius, float topRadius, int 
 
 	return c;
 }
+
+
 void cylinder_bind(Cylinder cylinder, GLuint vertexPosLoc, GLuint vertexColLoc, GLuint vertexNormalLoc, int verbose) {
 	/* ------------- CYLINDER BODY -------------*/
 
