@@ -10,6 +10,7 @@ uniform vec3 materialA;
 uniform vec3 materialD;
 uniform vec3 materialS;
 uniform sampler2D myTexture;
+uniform float h;
 
 const int N = 3;
 
@@ -30,7 +31,7 @@ out vec4 pixelColor;
 
 void main() {
 
-	if (gl_FragCoord.x >= 20 && gl_FragCoord.x <= 100 && gl_FragCoord.y >= 20  && gl_FragCoord.y <= 100) discard;
+	if (gl_FragCoord.x >= 0 && gl_FragCoord.x <= h * 0.12 && gl_FragCoord.y <= h  && gl_FragCoord.y >= h - h * 0.1) discard;
 	
    vec3 n = normalize(worldVertexNormal);
    vec3 v = normalize(cameraPosition - worldVertexPosition);
