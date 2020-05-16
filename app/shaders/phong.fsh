@@ -31,7 +31,7 @@ out vec4 pixelColor;
 
 void main() {
 
-	if (gl_FragCoord.x >= 0 && gl_FragCoord.x <= h * 0.12 && gl_FragCoord.y <= h  && gl_FragCoord.y >= h - h * 0.1) discard;
+	//if (gl_FragCoord.x >= 0 && gl_FragCoord.x <= h * 0.12 && gl_FragCoord.y <= h  && gl_FragCoord.y >= h - h * 0.1) discard;
 	
    vec3 n = normalize(worldVertexNormal);
    vec3 v = normalize(cameraPosition - worldVertexPosition);
