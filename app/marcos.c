@@ -400,11 +400,13 @@ static void turnRight() {
     observerYaw -= angleSpeed;
 }
 
+// change
 static void turnDown() {
     if(angleSpeed > 30) angleSpeed = 0.15;
     if(observerPitch >= -70) observerPitch -= angleSpeed;
 }
 
+// change
 static void turnUp() {
     if(angleSpeed > 30) angleSpeed = 0.15;
     if(observerPitch <= 90)observerPitch += angleSpeed;
@@ -652,6 +654,7 @@ static void mouseMotionFunc(int x, int y) {
     incY /= m;
     if(incX == 1.0) turnRight();
     else if(incX == -1.0) turnLeft();
+    // change
     if(incY == -1.0) turnUp();
     else if(incY == 1.0) turnDown();
     glutPostRedisplay();
