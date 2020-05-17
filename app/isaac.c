@@ -525,14 +525,28 @@ static float floatingAbs(float val) {
 
 static void updateBulletPosition() {
     for (int i = 0; i < 3; i++) {
-        bulletPosition[i] += bulletDirection[i];
+        bulletPosition[i] += bulletDirection[i]*2.0;
     }
     if (floatingAbs(bulletPosition[0]) <= ROOM_WIDTH/2 &&
         floatingAbs(bulletPosition[1]) <= ROOM_HEIGHT/2 &&
         floatingAbs(bulletPosition[2]) <= ROOM_DEPTH/2 ) {
         bulletInRange = 1;
 //        printf("%.2f, %.2f\n", floatingAbs(bulletPosition[0]), floatingAbs(bulletPosition[2]));
+
+        //Check bullet's collisions with the pillars
+    	for (int i = 0; i < N_PILLAR; i++) {
+    		double d  = distance2D(bulletPosition[0], pillars[i].pos.x, bulletPosition[2], pillars[i].pos.z);
+    		if ( d <= (observerR + pillars[i].r)) {
+    			pillars[i].shot = True;
+    		}
+    	}
     } else {
+    	for (int i = 0; i < N_PILLAR; i++) {
+    		printf("%d ", pillars[i].shot);
+    		pillars[i].shot = 0;
+    	}
+    	printf("\n");
+
         bulletInRange = 0;
         shootActive = 0;
     }
@@ -763,9 +777,8 @@ int main1(int argc, char **argv) {
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH);
     glutInitWindowPosition(0 ,0);
     glutInitWindowSize(900, 600);
-    puts("Isaac");
     glutCreateWindow("Shooting Range Isaac");
-    //glutFullScreen();
+//    glutFullScreen();
     glutDisplayFunc(displayFunc);
     glutReshapeFunc(reshapeFunc);
     glutTimerFunc(10, timerFunc, 1);
