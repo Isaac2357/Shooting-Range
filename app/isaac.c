@@ -11,6 +11,7 @@
 
 #define toRadians(deg) deg * M_PI / 180.0
 #define max(a, b) a > b ? a : b
+#define N_PILLAR 6
 
 static const float ROOM_WIDTH  = 40;
 static const float ROOM_HEIGHT = 6;
@@ -29,14 +30,15 @@ static float observerZ = 0;
 static float observerYaw = 0;
 static float observerPitch = 0;
 static float observerSpeed = 0.1;
+static float observerR = 2.0;
 static float angleSpeed = 0.1;
 static int mouseX, mouseY;
 
 static Mat4   modelMatrix, projectionMatrix, viewMatrix;
 
 static GLuint programId1, vertexPositionLoc, vertexColorLoc,
-			  vertexNormalLoc, vertexTexcoordLoc, modelMatrixLoc,
-			  projectionMatrixLoc, viewMatrixLoc, hLoc;
+              vertexNormalLoc, vertexTexcoordLoc, modelMatrixLoc,
+              projectionMatrixLoc, viewMatrixLoc, hLoc;
 
 static GLuint programId2, vertexPositionLoc2, vertexColorLoc2, vertexTexcoordLoc2;
 
@@ -56,28 +58,27 @@ static vec3 materialA     = {0.8, 0.8, 0.8};
 static vec3 materialD     = {0.6, 0.6, 0.6};
 static vec3 materialS     = {0.6, 0.6, 0.6};
 
-//                          Color    subcutoff,  Position  Exponent Direction  Cos(cutoff)
 static float lights[]   = {
-		1, 1, 0.93, 	// Color
-		0.9238,    		// Sub-cutoff
-		0, 3,  -10,  	// Position
-		256,	  		// Exponent
-		0, -1,  0,   	// Direction
-		0.7071,			// Cutoff
+        1, 1, 0.93, 	// Color
+        0.9238,    		// Sub-cutoff
+        0, 3,  -10,  	// Position
+        256,	  		// Exponent
+        0, -1,  0,   	// Direction
+        0.7071,			// Cutoff
 
         1, 1, 0.93,
-		0.9238,
-		0, 3,   0,
-		256,
-		0, -1,  0,
-		0.7071,
+        0.9238,
+        0, 3,   0,
+        256,
+        0, -1,  0,
+        0.7071,
 
-		1, 1, 0.93,
-		0.9238,
-		0, 3,   10,
-		256,
-		0, -1,  0,
-		0.7071
+        1, 1, 0.93,
+        0.9238,
+        0, 3,   10,
+        256,
+        0, -1,  0,
+        0.7071
 };
 
 static GLuint lightsBufferId;
@@ -95,6 +96,16 @@ static vec3 bulletPosition = {0,0,0};
 static vec3 bulletDirection = {0,0,0};
 static int shootActive = 0, bulletInRange = 1;
 
+typedef struct {
+	Vec3 pos;
+	float r;
+	float h;
+	Bool shot;
+} Pillar;
+
+Pillar pillars [N_PILLAR] ;
+
+
 static void initTexture(const char* filename, GLuint textureId) {
     unsigned char* data;
     unsigned int width, height;
@@ -111,11 +122,11 @@ static void initTextures() {
     glGenTextures(4, textures);
     initTexture("textures/Brick.bmp",    textures[0]);
     initTexture("textures/Ceiling.bmp",  textures[1]);
-    initTexture("textures/Shotgun.bmp",  textures[2]);
+    initTexture("textures/Gun.bmp",  textures[2]);
 }
 
 static int initShaders() {
-	int err = 1;
+    int err = 1;
     GLuint vShader = compileShader("shaders/phong.vsh", GL_VERTEX_SHADER);
     if(!shaderCompiled(vShader)) return err;
     GLuint fShader = compileShader("shaders/phong.fsh", GL_FRAGMENT_SHADER);
@@ -273,10 +284,9 @@ static void initRoom() {
 }
 
 static void initPlayer() {
-    float positions[] =  { -0.2, -0.5,    -0.2, -1,    0.2, -0.5,    0.2, -1 };
+    float positions[] =  { 0.0, -0.2,    0.0, -1,    0.5, -0.2,    0.5, -1 };
     float colors[] = { 1, 1, 1,  1, 1, 1, 1, 1, 1,  1, 1, 1};
-    // TODO Adjust texture or add new texture
-    float textcoords[] = { 0, 1,   0, 0,  1, 1,  1, 0 };
+    float textcoords[] = { 0, 1,  0, 0,  1, 1, 1, 0};
 
     glUseProgram(programId2);
     glGenVertexArrays(1, &playerVA);
@@ -301,17 +311,17 @@ static void initPlayer() {
 }
 
 static void initCross() {
-	int w = glutGet(GLUT_WINDOW_WIDTH);
-	int h = glutGet(GLUT_WINDOW_HEIGHT);
-	float aspect = (float)w / h;
-	printf("%d, %d %.4f\n", w, h, aspect);
-	float scale = 0.05;
-	float model [] = {
-			0,  		1 * scale,
-			0,		   -1 * scale,
-			1 * scale / aspect,  0,
-		   -1 * scale / aspect,  0
-	};
+    int w = glutGet(GLUT_WINDOW_WIDTH);
+    int h = glutGet(GLUT_WINDOW_HEIGHT);
+    float aspect = (float)w / h;
+//    printf("%d, %d %.4f\n", w, h, aspect);
+    float scale = 0.05;
+    float model [] = {
+            0,  		1 * scale,
+            0,		   -1 * scale,
+            1 * scale / aspect,  0,
+           -1 * scale / aspect,  0
+    };
 
     glUseProgram(programId4);
     glGenVertexArrays(1, &crossVA);
@@ -325,6 +335,41 @@ static void initCross() {
     glEnableVertexAttribArray(vertexPositionLoc4);
 }
 
+static void initPillars() {
+	for(int i = 0; i < N_PILLAR; i++) {
+		pillars[i].h = ROOM_HEIGHT;
+		pillars[i].r = 1;
+		pillars[i].shot = False;
+	}
+	pillars[0].pos.x = -ROOM_WIDTH/4;
+	pillars[0].pos.y = 0;
+	pillars[0].pos.z = 0;
+
+	pillars[1].pos.x = ROOM_WIDTH/4;
+	pillars[1].pos.y = 0;
+	pillars[1].pos.z = 0;
+
+	pillars[2].pos.x = -ROOM_WIDTH/4;
+	pillars[2].pos.y = 0;
+	pillars[2].pos.z = -ROOM_DEPTH/4;
+
+	pillars[3].pos.x = -ROOM_WIDTH/4;
+	pillars[3].pos.y = 0;
+	pillars[3].pos.z = ROOM_DEPTH/4;
+
+	pillars[4].pos.x = ROOM_WIDTH/4;
+	pillars[4].pos.y = 0;
+	pillars[4].pos.z = -ROOM_DEPTH/4;
+
+	pillars[5].pos.x = ROOM_WIDTH/4;
+	pillars[5].pos.y = 0;
+	pillars[5].pos.z = ROOM_DEPTH/4;
+}
+
+static double distance2D(float x1, float x2, float y1, float y2) {
+	return sqrt((x1 - x2) * (x1 - x2) + (y1- y2) * (y1- y2));
+}
+
 static Bool collides(float x, float y, float z) {
     float startX = -ROOM_WIDTH / 2;
     float startY = -ROOM_HEIGHT / 2;
@@ -335,10 +380,30 @@ static Bool collides(float x, float y, float z) {
              z - radius <= startZ || z + radius >= startZ + ROOM_DEPTH;
 }
 
+static int collidesPillar(int x, int z) {
+	for (int i = 0; i < N_PILLAR; i++) {
+		double d  = distance2D(x, pillars[i].pos.x, z, pillars[i].pos.z);
+		//printf("%.4lf <= %.4f\n", d, (observerR + pillars[i].r));
+		if ( d <= (observerR + pillars[i].r)) {
+			return i;
+		}
+	}
+	return -1;
+}
+
 static void moveForward() {
     float yawRadians   = M_PI * observerYaw / 180;
     float incX = -observerSpeed * sin(yawRadians);
     float incZ = -observerSpeed * cos(yawRadians);
+
+    int idx = collidesPillar(observerX + incX, observerZ + incZ);
+    if (idx >= 0) {
+//    	double d1 = distance2D(observerX, pillars[idx].pos.x, observerZ, pillars[idx].pos.z); // Current
+//    	double d2 = distance2D(observerX + incX, pillars[idx].pos.x, observerZ + incZ, pillars[idx].pos.z); // New
+//    	printf("F: %.4lf, %.4lf\n", d1, d2);
+    	return;
+    }
+
     if(collides(observerX + incX, observerY, observerZ + incZ)) {
         observerX -= incX;
         observerZ -= incZ;
@@ -353,6 +418,15 @@ static void moveBack() {
     float yawRadians   = M_PI * observerYaw / 180;
     float incX = observerSpeed * sin(yawRadians);
     float incZ = observerSpeed * cos(yawRadians);
+
+    int idx = collidesPillar(observerX + incX, observerZ + incZ);
+    if (idx >= 0) {
+//    	double d1 = distance2D(observerX, pillars[idx].pos.x, observerZ, pillars[idx].pos.z); // Current
+//    	double d2 = distance2D(observerX + incX, pillars[idx].pos.x, observerZ + incZ, pillars[idx].pos.z); // New
+//    	printf("F: %.4lf, %.4lf\n", d1, d2);
+    	return;
+    }
+
     if(collides(observerX + incX, observerY, observerZ + incZ)) {
         observerX -= incX;
         observerZ -= incZ;
@@ -367,8 +441,17 @@ static void moveLeft() {
     float yawRadians   = M_PI * observerYaw / 180;
     float incX = observerSpeed * cos(yawRadians);
     float incZ = observerSpeed * sin(yawRadians);
+
+    int idx = collidesPillar(observerX - incX, observerZ + incZ);
+    if (idx >= 0) {
+//    	double d1 = distance2D(observerX, pillars[idx].pos.x, observerZ, pillars[idx].pos.z); // Current
+//    	double d2 = distance2D(observerX - incX, pillars[idx].pos.x, observerZ + incZ, pillars[idx].pos.z); // New
+//    	printf("L: %.4lf, %.4lf\n", d1, d2);
+    	return;
+    }
+
     if(collides(observerX - incX, observerY, observerZ + incZ)) {
-        observerX -= incX;
+        observerX += incX;
         observerZ -= incZ;
         motionType = 0;
     } else {
@@ -381,6 +464,15 @@ static void moveRight() {
     float yawRadians   = M_PI * observerYaw / 180;
     float incX = observerSpeed * cos(yawRadians);
     float incZ = observerSpeed * sin(yawRadians);
+
+    int idx = collidesPillar(observerX + incX, observerZ - incZ);
+    if (idx >= 0) {
+//    	double d1 = distance2D(observerX, pillars[idx].pos.x, observerZ, pillars[idx].pos.z); // Current
+//    	double d2 = distance2D(observerX + incX, pillars[idx].pos.x, observerZ - incZ, pillars[idx].pos.z); // New
+//    	printf("R: %.4lf, %.4lf\n", d1, d2);
+    	return;
+    }
+
     if(collides(observerX + incX, observerY, observerZ - incZ)) {
         observerX -= incX;
         observerZ -= incZ;
@@ -401,6 +493,16 @@ static void turnRight() {
     observerYaw -= angleSpeed;
 }
 
+static void turnDown() {
+    if(angleSpeed > 30) angleSpeed = 0.15;
+    if(observerPitch >= -70) observerPitch -= angleSpeed;
+}
+
+static void turnUp() {
+    if(angleSpeed > 30) angleSpeed = 0.15;
+    if(observerPitch <= 90)observerPitch += angleSpeed;
+}
+
 static float dot(vec3 u, vec3 v) {
     return u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
 }
@@ -417,23 +519,23 @@ static void toUnit(vec3 v) {
 }
 
 static float floatingAbs(float val) {
-	if (val >= 0.0) return val;
-	return -val;
+    if (val >= 0.0) return val;
+    return -val;
 }
 
 static void updateBulletPosition() {
-	for (int i = 0; i < 3; i++) {
-		bulletPosition[i] += bulletDirection[i];
-	}
-	if (floatingAbs(bulletPosition[0]) <= ROOM_WIDTH/2 &&
-		floatingAbs(bulletPosition[1]) <= ROOM_HEIGHT/2 &&
-		floatingAbs(bulletPosition[2]) <= ROOM_DEPTH/2 ) {
-		bulletInRange = 1;
-		//printf("%.2f, %.2f\n", floatingAbs(bulletPosition[0]), floatingAbs(bulletPosition[2]));
-	} else {
-		bulletInRange = 0;
-		shootActive = 0;
-	}
+    for (int i = 0; i < 3; i++) {
+        bulletPosition[i] += bulletDirection[i];
+    }
+    if (floatingAbs(bulletPosition[0]) <= ROOM_WIDTH/2 &&
+        floatingAbs(bulletPosition[1]) <= ROOM_HEIGHT/2 &&
+        floatingAbs(bulletPosition[2]) <= ROOM_DEPTH/2 ) {
+        bulletInRange = 1;
+//        printf("%.2f, %.2f\n", floatingAbs(bulletPosition[0]), floatingAbs(bulletPosition[2]));
+    } else {
+        bulletInRange = 0;
+        shootActive = 0;
+    }
 }
 
 static void displayFunc() {
@@ -480,36 +582,44 @@ static void displayFunc() {
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
     // Draw cylinders
+//    glUseProgram(programId1);
+//    mIdentity(&modelMatrix);
+//    translate(&modelMatrix, -ROOM_WIDTH/4, 0, 0);
+//    glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
+//    cylinder_draw(c);
+//
+//    mIdentity(&modelMatrix);
+//    translate(&modelMatrix, ROOM_WIDTH/4, 0, 0);
+//    glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
+//    cylinder_draw(c);
+//
+//    mIdentity(&modelMatrix);
+//    translate(&modelMatrix, -ROOM_WIDTH/4, 0, -ROOM_DEPTH/4);
+//    glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
+//    cylinder_draw(c);
+//
+//    mIdentity(&modelMatrix);
+//    translate(&modelMatrix, ROOM_WIDTH/4, 0, -ROOM_DEPTH/4);
+//    glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
+//    cylinder_draw(c);
+//
+//    mIdentity(&modelMatrix);
+//    translate(&modelMatrix, -ROOM_WIDTH/4, 0, ROOM_DEPTH/4);
+//    glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
+//    cylinder_draw(c);
+//
+//    mIdentity(&modelMatrix);
+//    translate(&modelMatrix, ROOM_WIDTH/4, 0, ROOM_DEPTH/4);
+//    glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
+//    cylinder_draw(c);
+
     glUseProgram(programId1);
-    mIdentity(&modelMatrix);
-    translate(&modelMatrix, -ROOM_WIDTH/4, 0, 0);
-    glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
-    cylinder_draw(c);
-
-    mIdentity(&modelMatrix);
-    translate(&modelMatrix, ROOM_WIDTH/4, 0, 0);
-    glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
-    cylinder_draw(c);
-
-    mIdentity(&modelMatrix);
-    translate(&modelMatrix, -ROOM_WIDTH/4, 0, -ROOM_DEPTH/4);
-    glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
-    cylinder_draw(c);
-
-    mIdentity(&modelMatrix);
-    translate(&modelMatrix, ROOM_WIDTH/4, 0, -ROOM_DEPTH/4);
-    glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
-    cylinder_draw(c);
-
-    mIdentity(&modelMatrix);
-    translate(&modelMatrix, -ROOM_WIDTH/4, 0, ROOM_DEPTH/4);
-    glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
-    cylinder_draw(c);
-
-    mIdentity(&modelMatrix);
-    translate(&modelMatrix, ROOM_WIDTH/4, 0, ROOM_DEPTH/4);
-    glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
-    cylinder_draw(c);
+    for (int i = 0; i < N_PILLAR; i++) {
+    	mIdentity(&modelMatrix);
+    	translate(&modelMatrix, pillars[i].pos.x, pillars[i].pos.y, pillars[i].pos.z);
+    	glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
+    	cylinder_draw(c);
+    }
 
     //Draw light objects
     glUseProgram(programId3);
@@ -539,11 +649,11 @@ static void displayFunc() {
 
     // Draw bullet
     if(shootActive && bulletInRange) {
-		updateBulletPosition();
-		mIdentity(&modelMatrix);
-		translate(&modelMatrix, bulletPosition[0], bulletPosition[1], bulletPosition[2]);
-		glUniformMatrix4fv(modelMatrixLoc3, 1, true, modelMatrix.values);
-		sphere_draw(bullet);
+        updateBulletPosition();
+        mIdentity(&modelMatrix);
+        translate(&modelMatrix, bulletPosition[0], bulletPosition[1], bulletPosition[2]);
+        glUniformMatrix4fv(modelMatrixLoc3, 1, true, modelMatrix.values);
+        sphere_draw(bullet);
     }
 
     // Draw cross
@@ -590,47 +700,46 @@ static void keyPressedFunc(unsigned char key, int x, int y) {
 }
 
 static void mouseClick(int button, int state, int x, int y) {
-	printf("%d, %d\n", x, y);
-	if ( state != GLUT_UP) return;
-	if(shootActive) return;
+//    printf("%d, %d\n", x, y);
+    if ( state != GLUT_UP) return;
+    if(shootActive) return;
 
-	if(button == GLUT_RIGHT_BUTTON) {
-		//puts("RIGHT - UP");
-		// Norm coords
-		float nx = 2.0 * x / glutGet(GLUT_WINDOW_WIDTH) - 1;
-		float ny =  -1 * (2.0 * y / glutGet(GLUT_WINDOW_HEIGHT) - 1);
-		printf("Norm: %.2f, %.2f\n", nx, ny);
+    if(button == GLUT_RIGHT_BUTTON) {
+        // Norm coords
+        float nx = 2.0 * x / glutGet(GLUT_WINDOW_WIDTH) - 1;
+        float ny =  -1 * (2.0 * y / glutGet(GLUT_WINDOW_HEIGHT) - 1);
+//        printf("Norm: %.2f, %.2f\n", nx, ny);
 
-		Vec4 rayN = {nx, ny, -1, 1};
-		// View coords
-		Mat4 invProjectioMatrix;
-		inverse(projectionMatrix, &invProjectioMatrix);
-		Vec4 rayV;
-		multiply(invProjectioMatrix, rayN, &rayV);
-		printf("View: %.2f, %.2f\n", rayV.x, rayV.y);
+        Vec4 rayN = {nx, ny, -1, 1};
+        // View coords
+        Mat4 invProjectioMatrix;
+        inverse(projectionMatrix, &invProjectioMatrix);
+        Vec4 rayV;
+        multiply(invProjectioMatrix, rayN, &rayV);
+//        printf("View: %.2f, %.2f\n", rayV.x, rayV.y);
 
-		// World coords
-		rayV.z = -1;
-		rayV.w = 0;
-		Mat4 invViewMatrix;
-		inverse(viewMatrix, &invViewMatrix);
-		Vec4 rayM;
-		multiply(invViewMatrix, rayV, &rayM);
-		rayM.w = 0;
-		vec4_normalize(&rayM);
-		printf("World: %.2f, %.2f, %.2f\n", rayM.x, rayM.y, rayM.z);
-		// Set bullet initial position
-		bulletPosition[0] = observerX;
-		bulletPosition[1] = observerY;
-		bulletPosition[2] = observerZ;
-		// Set bullet direction
-		bulletDirection[0] = rayM.x;
-		bulletDirection[1] = rayM.y;
-		bulletDirection[2] = rayM.z;
+        // World coords
+        rayV.z = -1;
+        rayV.w = 0;
+        Mat4 invViewMatrix;
+        inverse(viewMatrix, &invViewMatrix);
+        Vec4 rayM;
+        multiply(invViewMatrix, rayV, &rayM);
+        rayM.w = 0;
+        vec4_normalize(&rayM);
+//        printf("World: %.2f, %.2f, %.2f\n", rayM.x, rayM.y, rayM.z);
+        // Set bullet initial position
+        bulletPosition[0] = observerX;
+        bulletPosition[1] = observerY;
+        bulletPosition[2] = observerZ;
+        // Set bullet direction
+        bulletDirection[0] = rayM.x;
+        bulletDirection[1] = rayM.y;
+        bulletDirection[2] = rayM.z;
 
-		shootActive = 1;
-		bulletInRange = 1;
-	}
+        shootActive = 1;
+        bulletInRange = 1;
+    }
 }
 
 static void mouseMotionFunc(int x, int y) {
@@ -643,6 +752,8 @@ static void mouseMotionFunc(int x, int y) {
     incY /= m;
     if(incX == 1.0) turnRight();
     else if(incX == -1.0) turnLeft();
+    if(incY == -1.0) turnUp();
+    else if(incY == 1.0) turnDown();
     glutPostRedisplay();
 }
 
@@ -650,11 +761,11 @@ int main1(int argc, char **argv) {
     setbuf(stdout, NULL);
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH);
-    puts("Isaac");
     glutInitWindowPosition(0 ,0);
-    glutInitWindowSize(900,600);
+    glutInitWindowSize(900, 600);
+    puts("Isaac");
     glutCreateWindow("Shooting Range Isaac");
-//    glutFullScreen();
+    //glutFullScreen();
     glutDisplayFunc(displayFunc);
     glutReshapeFunc(reshapeFunc);
     glutTimerFunc(10, timerFunc, 1);
@@ -667,8 +778,8 @@ int main1(int argc, char **argv) {
     glEnable(GL_DEPTH_TEST);
 
     if (initShaders() != 0) {
-    	puts("At least one shader did not compile.");
-    	exit(1);
+        puts("At least one shader did not compile.");
+        exit(1);
     }
 
     initTextures();
@@ -676,6 +787,7 @@ int main1(int argc, char **argv) {
     initRoom();
     initPlayer();
     initCross();
+    initPillars();
 
     glClearColor(0, 0, 0, 1.0);
     glutMainLoop();
