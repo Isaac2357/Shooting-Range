@@ -383,12 +383,12 @@ static void initPillars() {
 
 static void initSquare() {
     float l1 = -0.5, l2 = 0.5;
-    float positions[] = {l1, l1, l2, l2, l1, l2, l1, l2, l2, l2, l1, l2, l2, l2, l2, l1, l2, l2,  // Frente
-                         l2, l1, l1, l1, l1, l1, l2, l2, l1, l1, l1, l1, l1, l2, l1, l2, l2, l1,  // Atrás
-                         l1, l1, l1, l1, l1, l2, l1, l2, l1, l1, l1, l2, l1, l2, l2, l1, l2, l1,  // Izquierda
-                         l2, l2, l1, l2, l2, l2, l2, l1, l1, l2, l2, l2, l2, l1, l2, l2, l1, l1,  // Derecha
-                         l1, l1, l1, l2, l1, l1, l1, l1, l2, l2, l1, l1, l2, l1, l2, l1, l1, l2,  // Abajo
-                         l2, l2, l1, l1, l2, l1, l2, l2, l2, l1, l2, l1, l1, l2, l2, l2, l2, l2   // Arriba
+    float positions[] = {l1, l1, l2,   l2, l1, l2,   l1, l2, l2,   l2, l1, l2,   l2, l2, l2,   l1, l2, l2,  // Frente
+                         l2, l1, l1,   l1, l1, l1,   l2, l2, l1,   l1, l1, l1,   l1, l2, l1,   l2, l2, l1,  // Atrás
+                         l1, l1, l1,   l1, l1, l2,   l1, l2, l1,   l1, l1, l2,   l1, l2, l2,   l1, l2, l1,  // Izquierda
+                         l2, l2, l1,   l2, l2, l2,   l2, l1, l1,   l2, l2, l2,   l2, l1, l2,   l2, l1, l1,  // Derecha
+                         l1, l1, l1,   l2, l1, l1,   l1, l1, l2,   l2, l1, l1,   l2, l1, l2,   l1, l1, l2,  // Abajo
+                         l2, l2, l1,   l1, l2, l1,   l2, l2, l2,   l1, l2, l1,   l1, l2, l2,   l2, l2, l2   // Arriba
     };
 
     float normals[] = { 0,  0,  1,  0,  0,  1,  0,  0,  1,  0,  0,  1,  0,  0,  1,  0,  0,  1,  // Frente
@@ -398,14 +398,12 @@ static void initSquare() {
                         0, -1,  0,  0, -1,  0,  0, -1,  0,  0, -1,  0,  0, -1,  0,  0, -1,  0,  // Abajo
                         0,  1,  0,  0,  1,  0,  0,  1,  0,  0,  1,  0,  0,  1,  0,  0,  1,  0,  // Arriba
     };
-    float texcoords[] = {       0, 2,       0, 0,  2, 0,   2 , 0,   2 , 2,       0, 2,
-                           2 * 0.5, 2,  2 * 0.5, 0,       0, 0,        0, 0,        0, 2,  2 * 0.5, 2,
-
-                                0, 2,       0, 0,  2 * 0.5, 0,   2 * 0.5, 0,   2 * 0.5, 2,       0, 2,
-                           2 * 0.5, 2,  2 * 0.5, 0,       0, 0,        0, 0,        0, 2,  2 * 0.5, 2,
-
-                                0, 2,       0, 0,  2 * 0.5, 0,   2 * 0.5, 0,   2 * 0.5, 2,       0, 2,
-                           2 * 0.5, 2,  2 * 0.5, 0,       0, 0,        0, 0,        0, 2,  2 * 0.5, 2,
+    float texcoords[] = {  0, 0,   1, 0,   0, 1,   1, 0,   1, 1,   0, 1,
+                           0, 0,   1, 0,   0, 1,   1, 0,   1, 1,   0, 1,
+                           0, 0,   1, 0,   0, 1,   1, 0,   1, 1,   0, 1,
+                           0, 0,   1, 0,   0, 1,   1, 0,   1, 1,   0, 1,
+                           0, 0,   1, 0,   0, 1,   1, 0,   1, 1,   0, 1,
+                           0, 0,   1, 0,   0, 1,   1, 0,   1, 1,   0, 1
     };
 
     glUseProgram(programId1);
@@ -428,20 +426,6 @@ static void initSquare() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(texcoords), texcoords, GL_STATIC_DRAW);
     glVertexAttribPointer(vertexTexcoordLoc, 2, GL_FLOAT, 0, 0, 0);
     glEnableVertexAttribArray(vertexTexcoordLoc);
-}
-
-static void initTargets() {
-    srand(time(NULL));
-    int i;
-    float xRange = ROOM_WIDTH/2 - 0.5;
-    float yRange = ROOM_HEIGHT/2 - 0.5;
-    float zRange = ROOM_DEPTH/2 - 0.5;
-    for(i = 0; i < N_TARGETS; i ++) {
-        targets[i].position.x = -xRange  + (xRange  + xRange)  * rand() / RAND_MAX;
-        targets[i].position.y = -yRange + (yRange + yRange) * rand() / RAND_MAX;
-        targets[i].position.z = -zRange  + (zRange  + zRange)  * rand() / RAND_MAX;
-        targets[i].shot = false;
-    }
 }
 
 static double distance2D(float x1, float x2, float y1, float y2) {
@@ -467,6 +451,29 @@ static int collidesPillar(int x, int z) {
         }
     }
     return -1;
+}
+
+
+static void initTargets() {
+    srand(time(NULL));
+    int i;
+    float xRange = ROOM_WIDTH/2 - 0.5;
+    float yRange = ROOM_HEIGHT/2 - 0.5;
+    float zRange = ROOM_DEPTH/2 - 0.5;
+    for(i = 0; i < N_TARGETS; i ++) {
+        int targetX = -xRange  + (xRange  + xRange)  * rand() / RAND_MAX;
+        int targetZ = -zRange  + (zRange  + zRange)  * rand() / RAND_MAX;
+        int positionValidation = collidesPillar(targetX, targetZ);
+        while(positionValidation >= 0) {
+            targetX = -xRange  + (xRange  + xRange)  * rand() / RAND_MAX;
+            targetZ = -zRange  + (zRange  + zRange)  * rand() / RAND_MAX;
+            positionValidation = collidesPillar(targetX, targetZ);
+        }
+        targets[i].position.x = targetX;
+        targets[i].position.y = -yRange + (yRange + yRange) * rand() / RAND_MAX;
+        targets[i].position.z = targetZ;
+        targets[i].shot = false;
+    }
 }
 
 static void moveForward() {
