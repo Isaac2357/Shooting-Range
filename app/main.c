@@ -383,12 +383,12 @@ static void initPillars() {
 
 static void initSquare() {
     float l1 = -0.5, l2 = 0.5;
-    float positions[] = {l1, l1, l2, l2, l1, l2, l1, l2, l2, l2, l1, l2, l2, l2, l2, l1, l2, l2,  // Frente
-                         l2, l1, l1, l1, l1, l1, l2, l2, l1, l1, l1, l1, l1, l2, l1, l2, l2, l1,  // Atrás
-                         l1, l1, l1, l1, l1, l2, l1, l2, l1, l1, l1, l2, l1, l2, l2, l1, l2, l1,  // Izquierda
-                         l2, l2, l1, l2, l2, l2, l2, l1, l1, l2, l2, l2, l2, l1, l2, l2, l1, l1,  // Derecha
-                         l1, l1, l1, l2, l1, l1, l1, l1, l2, l2, l1, l1, l2, l1, l2, l1, l1, l2,  // Abajo
-                         l2, l2, l1, l1, l2, l1, l2, l2, l2, l1, l2, l1, l1, l2, l2, l2, l2, l2   // Arriba
+    float positions[] = {l1, l1, l2,   l2, l1, l2,   l1, l2, l2,   l2, l1, l2,   l2, l2, l2,   l1, l2, l2,  // Frente
+                         l2, l1, l1,   l1, l1, l1,   l2, l2, l1,   l1, l1, l1,   l1, l2, l1,   l2, l2, l1,  // Atrás
+                         l1, l1, l1,   l1, l1, l2,   l1, l2, l1,   l1, l1, l2,   l1, l2, l2,   l1, l2, l1,  // Izquierda
+                         l2, l2, l1,   l2, l2, l2,   l2, l1, l1,   l2, l2, l2,   l2, l1, l2,   l2, l1, l1,  // Derecha
+                         l1, l1, l1,   l2, l1, l1,   l1, l1, l2,   l2, l1, l1,   l2, l1, l2,   l1, l1, l2,  // Abajo
+                         l2, l2, l1,   l1, l2, l1,   l2, l2, l2,   l1, l2, l1,   l1, l2, l2,   l2, l2, l2   // Arriba
     };
 
     float normals[] = { 0,  0,  1,  0,  0,  1,  0,  0,  1,  0,  0,  1,  0,  0,  1,  0,  0,  1,  // Frente
@@ -398,14 +398,12 @@ static void initSquare() {
                         0, -1,  0,  0, -1,  0,  0, -1,  0,  0, -1,  0,  0, -1,  0,  0, -1,  0,  // Abajo
                         0,  1,  0,  0,  1,  0,  0,  1,  0,  0,  1,  0,  0,  1,  0,  0,  1,  0,  // Arriba
     };
-    float texcoords[] = {       0, 2,       0, 0,  2, 0,   2 , 0,   2 , 2,       0, 2,
-                           2 * 0.5, 2,  2 * 0.5, 0,       0, 0,        0, 0,        0, 2,  2 * 0.5, 2,
-
-                                0, 2,       0, 0,  2 * 0.5, 0,   2 * 0.5, 0,   2 * 0.5, 2,       0, 2,
-                           2 * 0.5, 2,  2 * 0.5, 0,       0, 0,        0, 0,        0, 2,  2 * 0.5, 2,
-
-                                0, 2,       0, 0,  2 * 0.5, 0,   2 * 0.5, 0,   2 * 0.5, 2,       0, 2,
-                           2 * 0.5, 2,  2 * 0.5, 0,       0, 0,        0, 0,        0, 2,  2 * 0.5, 2,
+    float texcoords[] = {  0, 0,   1, 0,   0, 1,   1, 0,   1, 1,   0, 1,
+                           0, 0,   1, 0,   0, 1,   1, 0,   1, 1,   0, 1,
+                           0, 0,   1, 0,   0, 1,   1, 0,   1, 1,   0, 1,
+                           0, 0,   1, 0,   0, 1,   1, 0,   1, 1,   0, 1,
+                           0, 0,   1, 0,   0, 1,   1, 0,   1, 1,   0, 1,
+                           0, 0,   1, 0,   0, 1,   1, 0,   1, 1,   0, 1
     };
 
     glUseProgram(programId1);
@@ -430,28 +428,14 @@ static void initSquare() {
     glEnableVertexAttribArray(vertexTexcoordLoc);
 }
 
-static void initTargets() {
-    srand(time(NULL));
-    int i;
-    float xRange = ROOM_WIDTH/2 - 0.5;
-    float yRange = ROOM_HEIGHT/2 - 0.5;
-    float zRange = ROOM_DEPTH/2 - 0.5;
-    for(i = 0; i < N_TARGETS; i ++) {
-        targets[i].position.x = -xRange  + (xRange  + xRange)  * rand() / RAND_MAX;
-        targets[i].position.y = -yRange + (yRange + yRange) * rand() / RAND_MAX;
-        targets[i].position.z = -zRange  + (zRange  + zRange)  * rand() / RAND_MAX;
-        targets[i].shot = false;
-    }
-}
-
 static double distance2D(float x1, float x2, float y1, float y2) {
     return sqrt((x1 - x2) * (x1 - x2) + (y1- y2) * (y1- y2));
 }
 
 static double distance3D(float x1, float x2, float y1, float y2, float z1, float z2) {
-	return sqrt((x1 - x2) * (x1 - x2) +
-	            (y1 - y2) * (y1 - y2) +
-			    (z1 - z2) * (z1 - z2));
+    return sqrt((x1 - x2) * (x1 - x2) +
+                (y1 - y2) * (y1 - y2) +
+                (z1 - z2) * (z1 - z2));
 }
 static Bool collides(float x, float y, float z) {
     float startX = -ROOM_WIDTH / 2;
@@ -474,32 +458,54 @@ static int collidesPillar(int x, int z) {
     return -1;
 }
 
+static void initTargets() {
+    srand(time(NULL));
+    int i;
+    float xRange = ROOM_WIDTH/2 - 0.5;
+    float yRange = ROOM_HEIGHT/2 - 0.5;
+    float zRange = ROOM_DEPTH/2 - 0.5;
+    for(i = 0; i < N_TARGETS; i ++) {
+        int targetX = -xRange  + (xRange  + xRange)  * rand() / RAND_MAX;
+        int targetZ = -zRange  + (zRange  + zRange)  * rand() / RAND_MAX;
+        int positionValidation = collidesPillar(targetX, targetZ);
+        while(positionValidation >= 0) {
+            targetX = -xRange  + (xRange  + xRange)  * rand() / RAND_MAX;
+            targetZ = -zRange  + (zRange  + zRange)  * rand() / RAND_MAX;
+            positionValidation = collidesPillar(targetX, targetZ);
+        }
+        targets[i].position.x = targetX;
+        targets[i].position.y = -yRange + (yRange + yRange) * rand() / RAND_MAX;
+        targets[i].position.z = targetZ;
+        targets[i].shot = false;
+    }
+}
+
 static Bool bulletCollidesTarget(Target t) {
-	//	printf("O (%.2f, %.2f, %.2f)\n", t.position.x, t.position.y, t.position.z);
-	//	printf("D (%.2f, %.2f, %.2f, %.2f, %.2f, %.2f)\n", x1, x2,y1, y2, z1, z2);
-	/* Sphere - AABB*/
-	float minX = t.position.x - 1*0.5;
-	float maxX = t.position.x + 1*0.5;
-	float minY = t.position.y - 1*0.5;
-	float maxY = t.position.y + 1*0.5;
-	float minZ = t.position.z - 1*0.5;
-	float maxZ = t.position.z + 1*0.5;
+    //	printf("O (%.2f, %.2f, %.2f)\n", t.position.x, t.position.y, t.position.z);
+    //	printf("D (%.2f, %.2f, %.2f, %.2f, %.2f, %.2f)\n", x1, x2,y1, y2, z1, z2);
+    /* Sphere - AABB*/
+    float minX = t.position.x - 1*0.5;
+    float maxX = t.position.x + 1*0.5;
+    float minY = t.position.y - 1*0.5;
+    float maxY = t.position.y + 1*0.5;
+    float minZ = t.position.z - 1*0.5;
+    float maxZ = t.position.z + 1*0.5;
 
-	float sx = bulletPosition[0];
-	float sy = bulletPosition[1];
-	float sz = bulletPosition[2];
-	float r = 0.1;
+    float sx = bulletPosition[0];
+    float sy = bulletPosition[1];
+    float sz = bulletPosition[2];
+    float r = 0.1;
 
-	float mx = min(sx, maxX);
-	float my = min(sy, maxY);
-	float mz = min(sz, maxZ);
+    float mx = min(sx, maxX);
+    float my = min(sy, maxY);
+    float mz = min(sz, maxZ);
     float x = max(minX, mx);
     float y = max(minY, my);
     float z = max(minZ, mz);
 
     float d = sqrt((x - sx) * (x - sx) +
                    (y - sy) * (y - sy) +
-				   (z - sz) * (z - sz));
+                   (z - sz) * (z - sz));
 
     return d <= r ? True : False;
 
@@ -645,71 +651,71 @@ static void updateBulletPosition() {
         floatingAbs(bulletPosition[1]) <= ROOM_HEIGHT/2 &&
         floatingAbs(bulletPosition[2]) <= ROOM_DEPTH/2 ) {
 
-    	bulletInRange = 1;
+        bulletInRange = 1;
 
         //Check bullet's collisions with the pillars
-    	for (int i = 0; i < N_PILLAR; i++) {
-    		double d  = distance2D(bulletPosition[0], pillars[i].pos.x, bulletPosition[2], pillars[i].pos.z);
-    		if ( d <= (0.1 + pillars[i].r)) {
-    			pillars[i].shot = True;
-    		}
-    	}
+        for (int i = 0; i < N_PILLAR; i++) {
+            double d  = distance2D(bulletPosition[0], pillars[i].pos.x, bulletPosition[2], pillars[i].pos.z);
+            if ( d <= (0.1 + pillars[i].r)) {
+                pillars[i].shot = True;
+            }
+        }
 
-    	// Check bullet collides with target
-    	for (int j; j < currentTargets; j++) {
-    		if(targets[j].shot) continue;
-    		if(bulletCollidesTarget(targets[j])) {
-    			targetsHit[j] = True;
-    		}
-    	}
+        // Check bullet collides with target
+        for (int j; j < currentTargets; j++) {
+            if(targets[j].shot) continue;
+            if(bulletCollidesTarget(targets[j])) {
+                targetsHit[j] = True;
+            }
+        }
 
     } else {
-    	int closestPilartHit = -1;
-    	double minDisP = 0.0;
-    	for (int i = 0; i < N_PILLAR; i++) {
-    		printf("%d ", pillars[i].shot);
-    		if(pillars[i].shot) {
-    			float distance = distance3D(
-    					observerX, pillars[i].pos.x,
-						observerY, pillars[i].pos.x,
-						observerZ, pillars[i].pos.z
-    			);
-    			if (closestPilartHit < 0 || distance < minDisP) {
-    				minDisP = distance;
-    				closestPilartHit = i;
-    			}
-    		}
-    		pillars[i].shot = 0;
-    	}
-    	printf("\n");
+        int closestPilartHit = -1;
+        double minDisP = 0.0;
+        for (int i = 0; i < N_PILLAR; i++) {
+            printf("%d ", pillars[i].shot);
+            if(pillars[i].shot) {
+                float distance = distance3D(
+                        observerX, pillars[i].pos.x,
+                        observerY, pillars[i].pos.x,
+                        observerZ, pillars[i].pos.z
+                );
+                if (closestPilartHit < 0 || distance < minDisP) {
+                    minDisP = distance;
+                    closestPilartHit = i;
+                }
+            }
+            pillars[i].shot = 0;
+        }
+        printf("\n");
 
-    	int closestTargetHit = -1;
-    	double minDisT = 0.0;
-    	for (int i = 0; i < currentTargets; i++) {
-    		if(targets[i].shot) continue;
-    		printf("%d ", targetsHit[i]);
-    		if(targetsHit[i]) {
-    			float distance = distance3D(
-    					observerX, targets[i].position.x,
-						observerY, targets[i].position.y,
-						observerZ, targets[i].position.z
-    			);
-    			if (closestTargetHit < 0 || distance < minDisT) {
-    				minDisT = distance;
-    				closestTargetHit = i;
-    			}
-    		}
-    		targetsHit[i]  = False;
-    	}
+        int closestTargetHit = -1;
+        double minDisT = 0.0;
+        for (int i = 0; i < currentTargets; i++) {
+            if(targets[i].shot) continue;
+            printf("%d ", targetsHit[i]);
+            if(targetsHit[i]) {
+                float distance = distance3D(
+                        observerX, targets[i].position.x,
+                        observerY, targets[i].position.y,
+                        observerZ, targets[i].position.z
+                );
+                if (closestTargetHit < 0 || distance < minDisT) {
+                    minDisT = distance;
+                    closestTargetHit = i;
+                }
+            }
+            targetsHit[i]  = False;
+        }
 
 //    	printf("\ntarget idx: %d, d: %.4lf\n", closestTargetHit, minDisT);
 //    	printf("\npillar idx: %d, d: %.4lf\n", closestPilartHit, minDisP);
 
-    	if(closestPilartHit < 0 && closestTargetHit >= 0) {
-    		targets[closestTargetHit].shot = 1;
-    	} else if (closestPilartHit >= 0 && closestTargetHit >= 0) {
-    		if (minDisT < minDisP) targets[closestTargetHit].shot = 1;
-    	}
+        if(closestPilartHit < 0 && closestTargetHit >= 0) {
+            targets[closestTargetHit].shot = 1;
+        } else if (closestPilartHit >= 0 && closestTargetHit >= 0) {
+            if (minDisT < minDisP) targets[closestTargetHit].shot = 1;
+        }
 
         bulletInRange = 0;
         shootActive = 0;
@@ -773,7 +779,7 @@ static void displayFunc() {
     glUniformMatrix4fv(viewMatrixLoc, 1, true, viewMatrix.values);
 
     for(int i = 0; i < currentTargets; i ++) {
-    	if(targets[i].shot) continue;
+        if(targets[i].shot) continue;
         mIdentity(&modelMatrix);
         translate(&modelMatrix, targets[i].position.x, targets[i].position.y, targets[i].position.z);
         glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
