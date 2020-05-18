@@ -872,6 +872,12 @@ static void keyPressedFunc(unsigned char key, int x, int y) {
         case 'D': motionType = RIGHT; break;
         case 'a':
         case 'A': motionType = LEFT; break;
+        case 'r':
+        case 'R':
+            initTargets();
+            timer2sec = 0;
+            currentTargets = 0;
+            break;
     }
     glutPostRedisplay();
 }
