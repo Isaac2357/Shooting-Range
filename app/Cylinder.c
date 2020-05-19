@@ -11,6 +11,7 @@
 #include <math.h>
 #include "Cylinder.h"
 
+
 static double degreesToRadians(double degrees) {
 	return degrees * (M_PI/180);
 }
@@ -49,6 +50,7 @@ Cylinder cylinder_create_solid(float length, float bottomRadius, float topRadius
 	c->colors = malloc(sizeof(float) * ((slices + 1) * 2 * stacks * 3));
 	c->normals = malloc(sizeof(float) * ((slices + 1) * 2 * stacks * 3));
 	c->indexes = malloc(sizeof(GLushort) * (((slices + 1) * 2 * stacks + (stacks - 1))* 3));
+
 
 	float y = -length/2;
 	float deltaY = length / stacks;
@@ -186,6 +188,7 @@ Cylinder cylinder_create(float length, float bottomRadius, float topRadius, int 
 	c->colors = malloc(sizeof(float) * ((slices + 1) * 2 * stacks * 3));
 	c->normals = malloc(sizeof(float) * ((slices + 1) * 2 * stacks * 3));
 	c->indexes = malloc(sizeof(GLushort) * (((slices + 1) * 2 * stacks + (stacks - 1))* 3));
+	c->texcoords = malloc(sizeof(float) * ((slices + 1) * 2 * stacks * 2));
 
 	float y = -length/2;
 	float deltaY = length / stacks;
@@ -201,6 +204,7 @@ Cylinder cylinder_create(float length, float bottomRadius, float topRadius, int 
 
 	int index = 0;
 	int indexesIdx = 0, idxAux = 0;
+	int indexTex = 0;
 
 	float r, g, b, rAux, gAux, bAux;
 
@@ -227,6 +231,14 @@ Cylinder cylinder_create(float length, float bottomRadius, float topRadius, int 
 			c->model[index + 4] = y + deltaY;
 			c->model[index + 5] = (radius + deltaRadius) * sin(degreesToRadians(theta));
 
+			/* TEXCOORDS */
+			c->texcoords[indexTex] = radius * cos(degreesToRadians(theta));
+			c->texcoords[indexTex + 1] = y;
+			c->texcoords[indexTex + 2] = radius * cos(degreesToRadians(theta));
+			c->texcoords[indexTex + 3] = y + deltaY;
+
+
+
 			/* COLORES */
 
 			c->colors[index]     = color[0]*0.8 + r*0.2;
@@ -244,6 +256,7 @@ Cylinder cylinder_create(float length, float bottomRadius, float topRadius, int 
 			theta += deltaTheta;
 			index += 6;
 			indexesIdx += 2;
+			indexTex += 4;
 		}
 
 		c->indexes[indexesIdx] = 0xFFFF;
@@ -323,15 +336,16 @@ Cylinder cylinder_create(float length, float bottomRadius, float topRadius, int 
 }
 
 
-void cylinder_bind(Cylinder cylinder, GLuint vertexPosLoc, GLuint vertexColLoc, GLuint vertexNormalLoc, int verbose) {
+void cylinder_bind(Cylinder cylinder, GLuint vertexPosLoc, GLuint vertexColLoc, GLuint vertexNormalLoc, GLuint vertexTexcoordLoc, int verbose) {
 	/* ------------- CYLINDER BODY -------------*/
 
 	glGenVertexArrays(3, cylinder->vertexArrayIds);
-	glGenBuffers(10, cylinder->bufferIds);
+	glGenBuffers(11, cylinder->bufferIds);
 
 	glBindVertexArray(cylinder->vertexArrayIds[0]);
 
 	long size = (long) sizeof(float) * ((cylinder->slices + 1) * 2 * cylinder->stacks * 3);
+	long sizeTexcoords = (long) sizeof(float) * ((cylinder->slices + 1) * 2 * cylinder->stacks * 2);
 	glBindBuffer(GL_ARRAY_BUFFER, cylinder->bufferIds[0]);
 	glBufferData(GL_ARRAY_BUFFER, size, cylinder->model, GL_STATIC_DRAW);
 	glEnableVertexAttribArray(vertexPosLoc);
@@ -353,6 +367,12 @@ void cylinder_bind(Cylinder cylinder, GLuint vertexPosLoc, GLuint vertexColLoc, 
 
 	glEnable(GL_PRIMITIVE_RESTART);
 	glPrimitiveRestartIndex(0xFFFF);
+
+	/* bind texcoords */
+	glBindBuffer(GL_ARRAY_BUFFER, cylinder->bufferIds[10]);
+	glBufferData(GL_ARRAY_BUFFER, sizeTexcoords, cylinder->texcoords, GL_STATIC_DRAW);
+	glVertexAttribPointer(vertexTexcoordLoc, 2, GL_FLOAT, 0, 0, 0);
+	glEnableVertexAttribArray(vertexTexcoordLoc);
 
 	/* ------------- CYLINDER TOP BASE -------------*/
 
