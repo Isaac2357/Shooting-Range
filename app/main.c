@@ -53,7 +53,7 @@ static Mat4   modelMatrix, projectionMatrix, viewMatrix;
 
 static GLuint programId1, vertexPositionLoc, vertexColorLoc,
               vertexNormalLoc, vertexTexcoordLoc, modelMatrixLoc,
-              projectionMatrixLoc, viewMatrixLoc, hLoc;
+              projectionMatrixLoc, viewMatrixLoc, hLoc, vertexTexcoordLoc;
 
 static GLuint programId2, vertexPositionLoc2, vertexColorLoc2, vertexTexcoordLoc2;
 
@@ -98,9 +98,9 @@ static float lights[]   = {
 
 static GLuint lightsBufferId;
 
-static GLuint textures[4];
+static GLuint textures[5];
 
-static vec3 col = {1, 0.8, 0.0};
+static vec3 col = {0.3, 0.3, 0.3};
 static Cylinder c;
 static vec3 lightBodyColor = {34.0/255, 36.0/255, 38.0/255};
 static vec3 lightBaseColor= {1, 1, 0.93};
@@ -133,11 +133,13 @@ static void initTexture(const char* filename, GLuint textureId) {
 }
 
 static void initTextures() {
-    glGenTextures(4, textures);
+    glGenTextures(5, textures);
     initTexture("textures/Brick.bmp",    textures[0]);
     initTexture("textures/Ceiling.bmp",  textures[1]);
     initTexture("textures/Gun.bmp",  textures[2]);
     initTexture("textures/Target.bmp",  textures[3]);
+    initTexture("textures/pared.bmp",  textures[4]);
+
 }
 
 static int initShaders() {
@@ -210,11 +212,11 @@ static int initShaders() {
 
     glUseProgram(programId1);
     c = cylinder_create(ROOM_HEIGHT, 1, 1, 40, 40, col, col, 0);
-    cylinder_bind(c, vertexPositionLoc, vertexColorLoc, vertexNormalLoc, 0);
+    cylinder_bind(c, vertexPositionLoc, vertexColorLoc, vertexNormalLoc, vertexTexcoordLoc, 0);
 
     glUseProgram(programId3);
     lightObj = cylinder_create_solid(0.5, 0.5, 0.25, 40, 40, lightBodyColor, lightBaseColor, 0);
-    cylinder_bind(lightObj, vertexPositionLoc3, vertexColorLoc3, vertexNormalLoc3, 0);
+    cylinder_bind(lightObj, vertexPositionLoc3, vertexColorLoc3, vertexNormalLoc3, vertexTexcoordLoc, 0);
     bullet = sphere_create_solid(0.1, 30, 30, bulletC, 0);
     sphere_bind(bullet, vertexPositionLoc3, vertexColorLoc3, vertexNormalLoc3, 0);
 
@@ -767,6 +769,7 @@ static void displayFunc() {
         mIdentity(&modelMatrix);
         translate(&modelMatrix, pillars[i].pos.x, pillars[i].pos.y, pillars[i].pos.z);
         glUniformMatrix4fv(modelMatrixLoc, 1, true, modelMatrix.values);
+        glBindTexture(GL_TEXTURE_2D, textures[0]);
         cylinder_draw(c);
     }
 

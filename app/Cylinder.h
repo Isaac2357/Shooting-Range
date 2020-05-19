@@ -35,6 +35,8 @@ struct strCylinder {
 	float *topBaseColors;
 	float *topBaseNormals;
 
+	float *texcoords;
+
 	GLuint vertexArrayIds[3];
 	GLuint bufferIds [10];
 };
@@ -43,7 +45,7 @@ typedef struct strCylinder* Cylinder;
 
 Cylinder cylinder_create(float length, float bottomRadius, float topRadius, int slices, int stacks, vec3 bottomColor, vec3 topColor, int verbose);
 Cylinder cylinder_create_solid(float length, float bottomRadius, float topRadius, int slices, int stacks, vec3 bottomColor, vec3 topColor, int verbose);
-void cylinder_bind(Cylinder cylinder, GLuint vertexPosLoc, GLuint vertexColLoc, GLuint vertexNormalLoc, int verbose);
+void cylinder_bind(Cylinder cylinder, GLuint vertexPosLoc, GLuint vertexColLoc, GLuint vertexNormalLoc, GLuint vertexTexcoordLoc, int verbose);
 void cylinder_draw(Cylinder cylinder);
 void cylinder_draw_lines(Cylinder cylinder);
 
