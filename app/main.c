@@ -820,10 +820,14 @@ static void displayFunc() {
     // Draw bullet
     if(shootActive && bulletInRange) {
         updateBulletPosition();
+        for (int i = 0; i < 10; i++){
         mIdentity(&modelMatrix);
         translate(&modelMatrix, bulletPosition[0], bulletPosition[1], bulletPosition[2]);
+        translate(&modelMatrix, bulletPosition[0]-(bulletDirection[0]*i), bulletPosition[1] - (bulletDirection[1]*i), bulletPosition[2] - (bulletDirection[2]*i));
+        scale(&modelMatrix, 1 - (i *.10), 1 - (i *.10), 1 - (i *.10));
         glUniformMatrix4fv(modelMatrixLoc3, 1, true, modelMatrix.values);
         sphere_draw(bullet);
+        }
     }
 
     // Draw cross
